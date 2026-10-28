@@ -1,0 +1,188 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MangoTrack · Console de recette</title>
+<style>
+  :root {
+    --fond: #f4f7f2; --surface: #ffffff; --encre: #15251b; --discret: #5b6b60;
+    --trait: #d5ded6; --feuille: #1f5138; --mangue: #f0a30a; --ok: #2c7a4b; --ko: #bb3328;
+    --ok-fond: #e5f3ea; --ko-fond: #fbe9e6; --attente: #9aa89e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fond: #101a14; --surface: #172319; --encre: #e8efe9; --discret: #9db0a2; --trait: #2a3c2f;
+            --feuille: #6cc496; --ok-fond: #17331f; --ko-fond: #3a1b17; --ok: #5fcf8a; --ko: #ff8a7d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre);
+         font: 16px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  header { padding: 20px 24px 0; max-width: 980px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 1.5rem; letter-spacing: -.01em; }
+  h1 span { color: var(--feuille); }
+  header p { margin: 4px 0 16px; color: var(--discret); }
+  nav { display: flex; gap: 4px; border-bottom: 2px solid var(--trait); }
+  nav button { background: none; border: 0; padding: 10px 18px; font: inherit; color: var(--discret); cursor: pointer;
+               border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  nav button[aria-selected="true"] { color: var(--encre); font-weight: 600; border-bottom-color: var(--mangue); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--mangue); outline-offset: 2px; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 24px 48px; }
+  section[hidden] { display: none; }
+  .ligne { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  select, input, textarea { font: inherit; color: var(--encre); background: var(--surface); border: 1px solid var(--trait); border-radius: 6px; padding: 8px 10px; }
+  input { flex: 1; min-width: 220px; font-family: ui-monospace, Consolas, monospace; }
+  textarea { width: 100%; min-height: 110px; font-family: ui-monospace, Consolas, monospace; font-size: .92rem; }
+  .primaire { background: var(--feuille); color: #fff; border: 0; border-radius: 6px; padding: 9px 20px; font: inherit; font-weight: 600; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .primaire { color: #0e1a12; } }
+  .primaire:disabled { opacity: .6; cursor: progress; }
+  .exemples { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .exemples button { background: var(--surface); border: 1px solid var(--trait); border-radius: 999px; padding: 3px 12px; font: inherit; font-size: .85rem; cursor: pointer; color: var(--encre); }
+  .exemples button:hover { border-color: var(--feuille); }
+  .reponse { margin-top: 16px; border: 1px solid var(--trait); background: var(--surface); border-radius: 8px; overflow: hidden; }
+  .reponse .code { padding: 10px 14px; font-weight: 700; font-family: ui-monospace, Consolas, monospace; border-bottom: 1px solid var(--trait); }
+  .code.bon { background: var(--ok-fond); color: var(--ok); } .code.mauvais { background: var(--ko-fond); color: var(--ko); }
+  pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-size: .9rem; max-height: 420px; }
+  .score { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 20px; }
+  .score div { flex: 1; min-width: 150px; background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 12px 16px; }
+  .score b { display: block; font-size: 1.9rem; line-height: 1.1; }
+  .score small { color: var(--discret); }
+  .score .complet { border-color: var(--ok); background: var(--ok-fond); }
+  h2 { font-size: 1.05rem; margin: 22px 0 8px; }
+  ul.points { list-style: none; padding: 0; margin: 0; border: 1px solid var(--trait); border-radius: 8px; background: var(--surface); }
+  ul.points li { display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; padding: 10px 14px; border-bottom: 1px solid var(--trait); }
+  ul.points li:last-child { border-bottom: 0; }
+  .id { font-weight: 700; font-family: ui-monospace, Consolas, monospace; display: flex; align-items: center; gap: 6px; }
+  .pastille { width: 12px; height: 12px; border-radius: 50%; background: var(--attente); flex: none; }
+  li.ok .pastille { background: var(--ok); } li.ko .pastille { background: var(--ko); }
+  .detail { grid-column: 2; font-size: .9rem; color: var(--ko); }
+  .indice { grid-column: 2; font-size: .9rem; color: var(--discret); }
+  .note { color: var(--discret); font-size: .92rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mango<span>Track</span> · console de recette</h1>
+  <p>Envoie des requêtes à ton API, puis vérifie le contrat point par point.</p>
+  <nav role="tablist">
+    <button role="tab" id="t-req" aria-selected="true" aria-controls="p-req">Requête</button>
+    <button role="tab" id="t-rec" aria-selected="false" aria-controls="p-rec">Recette</button>
+  </nav>
+</header>
+<main>
+  <section id="p-req" role="tabpanel" aria-labelledby="t-req">
+    <div class="ligne">
+      <select id="methode" aria-label="Verbe HTTP"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+      <input id="chemin" value="/api/producteurs" aria-label="Adresse" spellcheck="false">
+      <button class="primaire" id="envoyer">Envoyer</button>
+    </div>
+    <div class="exemples" id="exemples"></div>
+    <label for="corps" class="note">Corps JSON (POST et PUT) : clés et textes entre guillemets doubles</label>
+    <textarea id="corps" spellcheck="false">{"nom": "Awa", "village": "Orodara"}</textarea>
+    <div id="reponse"></div>
+  </section>
+
+  <section id="p-rec" role="tabpanel" aria-labelledby="t-rec" hidden>
+    <div class="ligne"><button class="primaire" id="lancer">Lancer la vérification</button></div>
+    <p class="note">Lis chaque point rouge et son indice avant de toucher au code. Le Socle valide la séance ; la Cible vient ensuite ; le Défi est facultatif.</p>
+    <div class="score" id="score"></div>
+    <div id="liste"></div>
+  </section>
+</main>
+
+<script src="{% static 'console/recette.js' %}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  // --- onglets
+  function onglet(nom) {
+    for (const [t, p] of [["t-req", "p-req"], ["t-rec", "p-rec"]]) {
+      const actif = (nom === "req") === (t === "t-req");
+      $(t).setAttribute("aria-selected", actif); $(p).hidden = !actif;
+    }
+  }
+  $("t-req").onclick = () => onglet("req"); $("t-rec").onclick = () => onglet("rec");
+
+  // --- onglet Requête
+  const EXEMPLES = [
+    ["Liste des producteurs", "GET", "/api/producteurs", ""],
+    ["Créer Awa", "POST", "/api/producteurs", '{"nom": "Awa", "village": "Orodara"}'],
+    ["Producteur 1", "GET", "/api/producteurs/1", ""],
+    ["Stock du producteur 1", "GET", "/api/producteurs/1/stock", ""],
+    ["Entrée de 40 kg", "POST", "/api/livraisons", '{"producteur": 1, "variete": "Kent", "poids_kg": 40, "sens": "entree"}'],
+    ["Sortie de 50 kg", "POST", "/api/livraisons", '{"producteur": 1, "variete": "Kent", "poids_kg": 50, "sens": "sortie"}'],
+  ];
+  for (const [nom, m, c, b] of EXEMPLES) {
+    const bt = document.createElement("button"); bt.textContent = nom; bt.type = "button";
+    bt.onclick = () => { $("methode").value = m; $("chemin").value = c; $("corps").value = b; };
+    $("exemples").appendChild(bt);
+  }
+  $("envoyer").onclick = async () => {
+    const m = $("methode").value; let corps;
+    if (m === "POST" || m === "PUT") {
+      try { corps = JSON.parse($("corps").value); }
+      catch (e) { afficher({ status: "JSON refusé", texte: String(e.message) + "\nUne virgule en trop ou oubliée, des guillemets simples ?", entetes: new Headers() }, true); return; }
+    }
+    $("envoyer").disabled = true;
+    const r = await window.RECETTE.appel(m, $("chemin").value, corps);
+    $("envoyer").disabled = false;
+    afficher(r, false);
+  };
+  function afficher(r, invalide) {
+    const bon = typeof r.status === "number" && r.status >= 200 && r.status < 300;
+    const total = r.entetes.get && r.entetes.get("X-Total-Count");
+    const corps = r.json !== null ? JSON.stringify(r.json, null, 2) : (r.texte || "(aucun contenu)");
+    const zone = $("reponse"); zone.textContent = "";
+    const boite = document.createElement("div"); boite.className = "reponse";
+    const code = document.createElement("div"); code.className = "code " + (bon ? "bon" : "mauvais");
+    code.textContent = (r.status === 0 ? "Failed to fetch" : r.status) + (total ? "   ·   X-Total-Count : " + total : "");
+    const pre = document.createElement("pre"); pre.textContent = r.status === 0 ? "Le serveur est arrêté ou l'adresse est mauvaise. Relance python manage.py runserver." : corps;
+    boite.append(code, pre); zone.appendChild(boite);
+  }
+
+  // --- onglet Recette
+  const NIVEAUX = [["Socle", "Socle (S1 à S9)", 9], ["Cible", "Cible (C0 à C10)", 11], ["Defi", "Défi (D1 à D5)", 5]];
+  function dessinerScore(bilan) {
+    $("score").textContent = "";
+    for (const [cle, titre, max] of NIVEAUX) {
+      const ok = bilan.filter((x) => x.niveau === cle && x.ok).length;
+      const d = document.createElement("div"); if (ok === max) d.className = "complet";
+      const b = document.createElement("b"); b.textContent = ok + " sur " + max;
+      const s = document.createElement("small"); s.textContent = titre;
+      d.append(b, s); $("score").appendChild(d);
+    }
+  }
+  function dessinerListe(bilan, enCours) {
+    const zone = $("liste"); zone.textContent = "";
+    for (const [cle, titre] of NIVEAUX) {
+      const h = document.createElement("h2"); h.textContent = titre; zone.appendChild(h);
+      const ul = document.createElement("ul"); ul.className = "points";
+      for (const test of window.RECETTE.TESTS.filter((x) => x.niveau === cle)) {
+        const r = bilan.find((x) => x.id === test.id);
+        const li = document.createElement("li"); li.className = r ? (r.ok ? "ok" : "ko") : "";
+        const id = document.createElement("div"); id.className = "id";
+        const p = document.createElement("span"); p.className = "pastille"; id.append(p, test.id);
+        const txt = document.createElement("div"); txt.textContent = test.titre;
+        li.append(id, txt);
+        if (r && !r.ok) {
+          const d = document.createElement("div"); d.className = "detail"; d.textContent = r.detail;
+          const i = document.createElement("div"); i.className = "indice";
+          i.textContent = "Indice" + (r.carte !== "—" ? " (carte " + r.carte + ", annexe D)" : "") + " : " + r.indice;
+          li.append(d, i);
+        }
+        ul.appendChild(li);
+      }
+      zone.appendChild(ul);
+    }
+  }
+  $("lancer").onclick = async () => {
+    $("lancer").disabled = true; $("lancer").textContent = "Vérification en cours…";
+    const bilan = [];
+    await window.RECETTE.lancer((res) => { bilan.push(res); dessinerScore(bilan); dessinerListe(bilan); });
+    $("lancer").disabled = false; $("lancer").textContent = "Relancer la vérification";
+  };
+  dessinerScore([]); dessinerListe([]);
+})();
+</script>
+</body>
+</html>
