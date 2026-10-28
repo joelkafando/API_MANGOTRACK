@@ -10,7 +10,7 @@ Merci de le lire avant votre première contribution.
 ### Récupérer le projet
 
 ```bash
-git clone https://github.com/VOTRE_PSEUDO/S2_demo_django.git
+git clone https://github.com/joelkafando/API_MANGOTRACK.git
 cd S2_demo_django
 ```
 
